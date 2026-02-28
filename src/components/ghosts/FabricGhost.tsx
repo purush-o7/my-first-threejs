@@ -146,9 +146,9 @@ export function FabricGhost({
         ref={lightRef}
         position={[0, 0.05, 0]}
         color={glowColor}
-        intensity={5}
-        distance={5}
-        decay={2}
+        intensity={6}
+        distance={7}
+        decay={1.5}
       />
     </group>
   );

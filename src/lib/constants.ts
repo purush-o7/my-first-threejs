@@ -40,18 +40,12 @@ export const GHOST_CONFIGS = [
   { color: "#ff00aa", speed: 0.4, radius: 3.5, height: 1 },
 ];
 
-// Fabric ghosts - cloth-animated with per-frame vertex normals (expensive)
-const ALL_FABRIC_GHOST_CONFIGS = [
+// Fabric ghosts - cloth-animated with per-frame vertex normals
+export const FABRIC_GHOST_CONFIGS = [
   { radius: 3.5, speed: 0.35, height: 1.2, orbitOffset: 0, glowColor: "#00ffcc" },
   { radius: 4.5, speed: 0.25, height: 1.5, orbitOffset: Math.PI * 0.66, glowColor: "#aa44ff" },
   { radius: 3, speed: 0.45, height: 1, orbitOffset: Math.PI * 1.33, glowColor: "#ff4466" },
 ];
-
-// Mobile gets 1 fabric ghost instead of 3 (saves 2x computeVertexNormals per frame)
-import { isMobile } from "./device";
-export const FABRIC_GHOST_CONFIGS = isMobile
-  ? ALL_FABRIC_GHOST_CONFIGS.slice(0, 1)
-  : ALL_FABRIC_GHOST_CONFIGS;
 
 // Bush positions
 export const BUSH_POSITIONS: [number, number, number][] = [

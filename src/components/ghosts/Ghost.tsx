@@ -30,9 +30,9 @@ export function Ghost({
     <pointLight
       ref={lightRef}
       color={color}
-      intensity={2}
-      distance={4}
-      decay={2}
+      intensity={4}
+      distance={7}
+      decay={1.5}
     />
   );
 }
