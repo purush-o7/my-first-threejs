@@ -10,7 +10,6 @@ import {
   GRAVE_COUNT,
   GRAVE_MIN_DISTANCE,
   GRAVE_MAX_ATTEMPTS,
-  SKELETON_TINTS,
 } from "@/lib/constants";
 
 function seededRandom(seed: number) {
@@ -28,7 +27,6 @@ interface GraveData {
   skelRotY: number;
   skelPosY: number;
   skelScale: number;
-  skelTint: string;
 }
 
 function generateGraves(): GraveData[] {
@@ -76,10 +74,6 @@ function generateGraves(): GraveData[] {
     const skelRotY = (seededRandom(seed * 89 + idx * 23) - 0.5) * Math.PI * 2;
     const skelPosY = -0.91 + (seededRandom(seed * 79 + idx * 37) - 0.5) * 0.1;
     const skelScale = 0.75 + (seededRandom(seed * 83 + idx * 43) - 0.5) * 0.2;
-    const skelTint =
-      SKELETON_TINTS[
-        Math.floor(seededRandom(seed * 97 + idx * 59) * SKELETON_TINTS.length)
-      ];
 
     placed.push({ x, z });
     result.push({
@@ -92,7 +86,6 @@ function generateGraves(): GraveData[] {
       skelRotY,
       skelPosY,
       skelScale,
-      skelTint,
     });
   }
 
@@ -143,7 +136,7 @@ export function Graves() {
         ))}
       </Instances>
 
-      {/* Skeletons — still individual (SkinnedMesh can't be instanced) */}
+      {/* Skeletons — shared single yellow tint material */}
       {graves
         .filter((g) => g.hasSkeleton)
         .map((g, i) => (
@@ -153,7 +146,6 @@ export function Graves() {
               rotY={g.skelRotY}
               posY={g.skelPosY}
               scale={g.skelScale}
-              tint={g.skelTint}
             />
           </group>
         ))}
