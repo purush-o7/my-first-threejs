@@ -1,7 +1,7 @@
 "use client";
 
-import { useLoader, useFrame } from "@react-three/fiber";
-import { TextureLoader, SphereGeometry } from "three";
+import { useFrame } from "@react-three/fiber";
+import { SphereGeometry, MeshStandardMaterial, Color, DoubleSide } from "three";
 import { useRef, useMemo } from "react";
 import type { PointLight, Group, Mesh } from "three";
 import { isMobile } from "@/lib/device";
@@ -25,25 +25,78 @@ export function FabricGhost({
   const meshRef = useRef<Mesh>(null);
   const lightRef = useRef<PointLight>(null);
 
-  const [diffMap, norMap, armMap] = useLoader(TextureLoader, [
-    "/textures/ghost/diff.jpg",
-    "/textures/ghost/nor.jpg",
-    "/textures/ghost/arm.jpg",
-  ]);
-
-  const { geometry, originalPositions } = useMemo(() => {
+  const geometry = useMemo(() => {
     const segments = isMobile ? 12 : 24;
-    const geo = new SphereGeometry(GHOST_RADIUS, segments, segments);
-    const positions = geo.attributes.position.array as Float32Array;
-    const original = new Float32Array(positions.length);
-    original.set(positions);
-    return { geometry: geo, originalPositions: original };
+    return new SphereGeometry(GHOST_RADIUS, segments, segments);
   }, []);
+
+  // Create material with custom vertex shader for cloth deformation
+  const material = useMemo(() => {
+    const mat = new MeshStandardMaterial({
+      transparent: true,
+      opacity: 0.35,
+      side: DoubleSide,
+      emissive: new Color(glowColor),
+      emissiveIntensity: 1.5,
+      color: new Color("#000000"),
+      depthWrite: false,
+      roughness: 1,
+    });
+
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.uTime = { value: 0 };
+      shader.uniforms.uRadius = { value: GHOST_RADIUS };
+
+      shader.vertexShader = shader.vertexShader.replace(
+        "#include <common>",
+        `
+        #include <common>
+        uniform float uTime;
+        uniform float uRadius;
+        `
+      );
+
+      shader.vertexShader = shader.vertexShader.replace(
+        "#include <begin_vertex>",
+        `
+        #include <begin_vertex>
+
+        float diameter = uRadius * 2.0;
+        float normalizedY = (uRadius - position.y) / diameter;
+        float wave = max(0.0, normalizedY);
+
+        // Stretch downward
+        float stretch = wave * wave * 0.25;
+
+        // Ripple effect
+        float ripple = wave * 0.06 * (
+          sin(uTime * 3.0 + position.x * 8.0 + position.z * 8.0) +
+          sin(uTime * 2.3 + position.x * 5.0 - position.z * 6.0) * 0.7 +
+          sin(uTime * 4.1 + position.z * 10.0) * 0.4
+        );
+
+        // Flare outward at bottom
+        float flare = wave * wave * 0.08;
+        float dist = max(length(position.xz), 0.001);
+        vec2 dir = position.xz / dist;
+
+        transformed.x += dir.x * flare + ripple;
+        transformed.y -= stretch;
+        transformed.z += dir.y * flare + ripple * 0.8;
+        `
+      );
+
+      // Store shader ref for uniform updates
+      mat.userData.shader = shader;
+    };
+
+    return mat;
+  }, [glowColor]);
 
   useFrame((state) => {
     const t = state.clock.elapsedTime * speed + orbitOffset;
 
-    // Organic orbit using layered sin/cos at different frequencies
+    // Organic orbit
     if (groupRef.current) {
       groupRef.current.position.x =
         Math.sin(t) * radius +
@@ -72,44 +125,12 @@ export function FabricGhost({
       groupRef.current.rotation.x = Math.cos(t * 1.8) * 0.06;
     }
 
-    // Animate vertices for cloth-like deformation
-    if (meshRef.current) {
-      const positions = meshRef.current.geometry.attributes.position;
-      const arr = positions.array as Float32Array;
-      const time = state.clock.elapsedTime;
-      const diameter = GHOST_RADIUS * 2;
-
-      for (let i = 0; i < arr.length; i += 3) {
-        const ox = originalPositions[i];
-        const oy = originalPositions[i + 1];
-        const oz = originalPositions[i + 2];
-
-        // How far down from the top (0 at top, 1 at bottom)
-        const normalizedY = (GHOST_RADIUS - oy) / diameter;
-        const wave = Math.max(0, normalizedY);
-
-        const stretch = wave * wave * 0.25;
-        const ripple =
-          wave *
-          0.06 *
-          (Math.sin(time * 3 + ox * 8 + oz * 8) +
-            Math.sin(time * 2.3 + ox * 5 - oz * 6) * 0.7 +
-            Math.sin(time * 4.1 + oz * 10) * 0.4);
-
-        const flare = wave * wave * 0.08;
-        const dist = Math.sqrt(ox * ox + oz * oz) || 0.001;
-        const dirX = ox / dist;
-        const dirZ = oz / dist;
-
-        arr[i] = ox + dirX * flare + ripple;
-        arr[i + 1] = oy - stretch;
-        arr[i + 2] = oz + dirZ * flare + ripple * 0.8;
-      }
-
-      positions.needsUpdate = true;
-      meshRef.current.geometry.computeVertexNormals();
+    // Update shader time uniform (GPU handles all vertex work)
+    if (material.userData.shader) {
+      material.userData.shader.uniforms.uTime.value = state.clock.elapsedTime;
     }
 
+    // Flicker light
     if (lightRef.current) {
       const flicker =
         Math.sin(state.clock.elapsedTime * 6) * 0.3 +
@@ -120,18 +141,7 @@ export function FabricGhost({
 
   return (
     <group ref={groupRef}>
-      <mesh ref={meshRef} castShadow geometry={geometry}>
-        <meshStandardMaterial
-          transparent
-          opacity={0.35}
-          side={2}
-          emissive={glowColor}
-          emissiveIntensity={1.5}
-          color="#000000"
-          depthWrite={false}
-          roughness={1}
-        />
-      </mesh>
+      <mesh ref={meshRef} castShadow geometry={geometry} material={material} />
       <pointLight
         ref={lightRef}
         position={[0, 0.05, 0]}

@@ -1,7 +1,7 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Stats, Stars } from "@react-three/drei";
+import { OrbitControls, Stats, Sky } from "@react-three/drei";
 import { useControls } from "leva";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import { HalfFloatType } from "three";
@@ -28,7 +28,7 @@ import { HauntedHouse } from "./HauntedHouse";
 import { CameraLookAt } from "./camera/CameraLookAt";
 import { ReadySignal } from "./camera/ReadySignal";
 
-const STAR_COUNT = isMobile ? 1000 : 3000;
+const SUN_POSITION: [number, number, number] = [0, -0.15, -1];
 
 export default function Scene({
   started = false,
@@ -79,14 +79,12 @@ export default function Scene({
       <color attach="background" args={[SCENE_BG_COLOR]} />
       <Lights />
 
-      <Stars
-        radius={50}
-        depth={50}
-        count={STAR_COUNT}
-        factor={4}
-        saturation={0}
-        fade
-        speed={1}
+      <Sky
+        sunPosition={SUN_POSITION}
+        turbidity={10}
+        rayleigh={0.1}
+        mieCoefficient={0.1}
+        mieDirectionalG={0.95}
       />
 
       <HauntedHouse />

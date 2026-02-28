@@ -3,6 +3,7 @@
 import { useLoader } from "@react-three/fiber";
 import { useControls } from "leva";
 import { TextureLoader, RepeatWrapping } from "three";
+import { useMemo } from "react";
 
 const ROOF_POSITION: [number, number, number] = [0, 2.75, 0];
 const ROOF_ROTATION: [number, number, number] = [0, Math.PI / 4, 0];
@@ -27,22 +28,25 @@ export function Roof() {
     "/textures/roof/arm.jpg",
   ]);
 
-  [diffMap, norMap, armMap].forEach((t) => {
-    t.wrapS = RepeatWrapping;
-    t.wrapT = RepeatWrapping;
-    t.repeat.set(...TEXTURE_REPEAT);
-  });
+  const textures = useMemo(() => {
+    [diffMap, norMap, armMap].forEach((t) => {
+      t.wrapS = RepeatWrapping;
+      t.wrapT = RepeatWrapping;
+      t.repeat.set(...TEXTURE_REPEAT);
+    });
+    return { diffMap, norMap, armMap };
+  }, [diffMap, norMap, armMap]);
 
   return (
     <mesh position={ROOF_POSITION} rotation={ROOF_ROTATION} castShadow receiveShadow>
       <coneGeometry args={[ROOF_RADIUS, ROOF_HEIGHT, radialSegments, heightSegments]} />
       <meshStandardMaterial
-        map={diffMap}
-        normalMap={norMap}
-        aoMap={armMap}
-        roughnessMap={armMap}
-        metalnessMap={armMap}
-        displacementMap={diffMap}
+        map={textures.diffMap}
+        normalMap={textures.norMap}
+        aoMap={textures.armMap}
+        roughnessMap={textures.armMap}
+        metalnessMap={textures.armMap}
+        displacementMap={textures.diffMap}
         displacementScale={displacementScale}
         aoMapIntensity={1}
       />

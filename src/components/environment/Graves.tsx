@@ -1,7 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { Grave } from "./Grave";
+import { useLoader } from "@react-three/fiber";
+import { Instances, Instance } from "@react-three/drei";
+import { TextureLoader } from "three";
+import { SkeletonModel } from "../Skeleton";
 import { isMobile } from "@/lib/device";
 import {
   GRAVE_COUNT,
@@ -99,23 +102,61 @@ function generateGraves(): GraveData[] {
 export function Graves() {
   const graves = useMemo(generateGraves, []);
 
+  const [diffMap, norMap, armMap] = useLoader(TextureLoader, [
+    "/textures/grave/diff.jpg",
+    "/textures/grave/nor.jpg",
+    "/textures/grave/arm.jpg",
+  ]);
+
   return (
     <group>
-      {graves.map((g, i) => (
-        <Grave
-          key={i}
-          position={g.pos}
-          rotation={g.rot}
-          tiltX={g.tiltX}
-          tiltZ={g.tiltZ}
-          hasSkeleton={g.hasSkeleton}
-          skelRotX={g.skelRotX}
-          skelRotY={g.skelRotY}
-          skelPosY={g.skelPosY}
-          skelScale={g.skelScale}
-          skelTint={g.skelTint}
+      {/* All 30 headstones — 1 draw call */}
+      <Instances limit={GRAVE_COUNT} castShadow receiveShadow>
+        <boxGeometry args={[0.4, 0.6, 0.1]} />
+        <meshStandardMaterial
+          map={diffMap}
+          normalMap={norMap}
+          aoMap={armMap}
+          roughnessMap={armMap}
+          metalnessMap={armMap}
+          aoMapIntensity={1}
         />
-      ))}
+        {graves.map((g, i) => (
+          <Instance
+            key={i}
+            position={[g.pos[0], g.pos[1] + 0.3, g.pos[2]]}
+            rotation={[g.tiltX, g.rot, g.tiltZ]}
+          />
+        ))}
+      </Instances>
+
+      {/* All 30 dirt patches — 1 draw call */}
+      <Instances limit={GRAVE_COUNT} receiveShadow>
+        <planeGeometry args={[0.4, 0.6]} />
+        <meshStandardMaterial color="#2a1a0a" />
+        {graves.map((g, i) => (
+          <Instance
+            key={i}
+            position={[g.pos[0], g.pos[1] + 0.05, g.pos[2] + 0.2]}
+            rotation={[g.tiltX - Math.PI / 2, g.rot, g.tiltZ]}
+          />
+        ))}
+      </Instances>
+
+      {/* Skeletons — still individual (SkinnedMesh can't be instanced) */}
+      {graves
+        .filter((g) => g.hasSkeleton)
+        .map((g, i) => (
+          <group key={i} position={g.pos} rotation={[g.tiltX, g.rot, g.tiltZ]}>
+            <SkeletonModel
+              rotX={g.skelRotX}
+              rotY={g.skelRotY}
+              posY={g.skelPosY}
+              scale={g.skelScale}
+              tint={g.skelTint}
+            />
+          </group>
+        ))}
     </group>
   );
 }

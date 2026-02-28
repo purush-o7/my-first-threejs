@@ -13,6 +13,8 @@ import { useGLTF } from "@react-three/drei";
 import { GLTF, SkeletonUtils } from "three-stdlib";
 import { useControls } from "leva";
 
+const materialCache = new Map<string, THREE.MeshStandardMaterial>();
+
 type GLTFResult = GLTF & {
   nodes: {
     Object_6: THREE.SkinnedMesh;
@@ -37,6 +39,9 @@ export function SkeletonModel({ posY = -0.91, rotX = 0.2, rotY = 0, scale = 0.75
   const { nodes, materials } = useGraph(clone) as unknown as GLTFResult;
 
   const tintedMaterial = React.useMemo(() => {
+    const cached = materialCache.get(tint);
+    if (cached) return cached;
+
     const originalMap = (materials.Skeleton_Normal as any).map;
     const mat = new THREE.MeshStandardMaterial({
       map: originalMap,
@@ -44,6 +49,7 @@ export function SkeletonModel({ posY = -0.91, rotX = 0.2, rotY = 0, scale = 0.75
       roughness: 0.9,
       metalness: 0.1,
     });
+    materialCache.set(tint, mat);
     return mat;
   }, [materials, tint]);
 

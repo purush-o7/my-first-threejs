@@ -3,6 +3,7 @@
 import { useLoader } from "@react-three/fiber";
 import { useControls } from "leva";
 import { TextureLoader, RepeatWrapping } from "three";
+import { useMemo } from "react";
 
 const GROUND_SIZE = 12;
 const GROUND_TEXTURE_REPEAT = 3;
@@ -26,20 +27,23 @@ export function Ground() {
     "/textures/ground/diff.jpg",
   ]);
 
-  [diffMap, norMap, roughMap].forEach((t) => {
-    t.wrapS = RepeatWrapping;
-    t.wrapT = RepeatWrapping;
-    t.repeat.set(GROUND_TEXTURE_REPEAT, GROUND_TEXTURE_REPEAT);
-  });
+  const textures = useMemo(() => {
+    [diffMap, norMap, roughMap].forEach((t) => {
+      t.wrapS = RepeatWrapping;
+      t.wrapT = RepeatWrapping;
+      t.repeat.set(GROUND_TEXTURE_REPEAT, GROUND_TEXTURE_REPEAT);
+    });
+    return { diffMap, norMap, roughMap, dispMap };
+  }, [diffMap, norMap, roughMap, dispMap]);
 
   return (
     <mesh rotation={GROUND_ROTATION} position={GROUND_POSITION} receiveShadow>
       <planeGeometry args={[GROUND_SIZE, GROUND_SIZE, segments, segments]} />
       <meshStandardMaterial
-        map={diffMap}
-        normalMap={norMap}
-        roughnessMap={roughMap}
-        displacementMap={dispMap}
+        map={textures.diffMap}
+        normalMap={textures.norMap}
+        roughnessMap={textures.roughMap}
+        displacementMap={textures.dispMap}
         displacementScale={displacementScale}
       />
     </mesh>
