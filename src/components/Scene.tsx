@@ -118,7 +118,6 @@ export default function Scene({
         />
       )}
 
-      <color attach="background" args={[SCENE_BG_COLOR]} />
       <Lights />
 
       <Sky

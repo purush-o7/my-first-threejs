@@ -2,9 +2,10 @@
 
 import { useFrame } from "@react-three/fiber";
 import { SphereGeometry, MeshStandardMaterial, Color, DoubleSide } from "three";
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useEffect } from "react";
 import type { PointLight, Group, Mesh } from "three";
 import { isMobile } from "@/lib/device";
+import type { useFabricGhostDebug } from "./useGhostDebug";
 
 const GHOST_RADIUS = 0.3;
 
@@ -14,12 +15,14 @@ export function FabricGhost({
   height,
   orbitOffset,
   glowColor,
+  debug,
 }: {
   radius: number;
   speed: number;
   height: number;
   orbitOffset: number;
   glowColor: string;
+  debug?: ReturnType<typeof useFabricGhostDebug>;
 }) {
   const groupRef = useRef<Group>(null);
   const meshRef = useRef<Mesh>(null);
@@ -30,7 +33,6 @@ export function FabricGhost({
     return new SphereGeometry(GHOST_RADIUS, segments, segments);
   }, []);
 
-  // Create material with custom vertex shader for cloth deformation
   const material = useMemo(() => {
     const mat = new MeshStandardMaterial({
       transparent: true,
@@ -65,17 +67,13 @@ export function FabricGhost({
         float normalizedY = (uRadius - position.y) / diameter;
         float wave = max(0.0, normalizedY);
 
-        // Stretch downward
         float stretch = wave * wave * 0.25;
-
-        // Ripple effect
         float ripple = wave * 0.06 * (
           sin(uTime * 3.0 + position.x * 8.0 + position.z * 8.0) +
           sin(uTime * 2.3 + position.x * 5.0 - position.z * 6.0) * 0.7 +
           sin(uTime * 4.1 + position.z * 10.0) * 0.4
         );
 
-        // Flare outward at bottom
         float flare = wave * wave * 0.08;
         float dist = max(length(position.xz), 0.001);
         vec2 dir = position.xz / dist;
@@ -86,56 +84,67 @@ export function FabricGhost({
         `
       );
 
-      // Store shader ref for uniform updates
       mat.userData.shader = shader;
     };
 
     return mat;
   }, [glowColor]);
 
-  useFrame((state) => {
-    const t = state.clock.elapsedTime * speed + orbitOffset;
+  // Apply debug overrides to material
+  useEffect(() => {
+    if (debug) {
+      material.opacity = debug.opacity;
+      material.emissiveIntensity = debug.emissiveIntensity;
+    }
+  }, [debug?.opacity, debug?.emissiveIntensity, material]);
 
-    // Organic orbit
+  useFrame((state) => {
+    const s = speed * (debug?.speed ?? 1);
+    const r = radius * (debug?.radius ?? 1);
+    const h = height * (debug?.height ?? 1);
+    const wobX = debug?.wobbleX ?? 0.8;
+    const wobZ = debug?.wobbleZ ?? 0.8;
+    const bob = debug?.bobAmount ?? 0.2;
+    const swayAmount = debug?.sway ?? 0.12;
+
+    const t = state.clock.elapsedTime * s + orbitOffset;
+
     if (groupRef.current) {
       groupRef.current.position.x =
-        Math.sin(t) * radius +
-        Math.cos(t * 2.3) * 0.8 +
+        Math.sin(t) * r +
+        Math.cos(t * 2.3) * wobX +
         Math.sin(t * 0.7) * 0.5;
       groupRef.current.position.z =
-        Math.cos(t) * radius +
-        Math.sin(t * 1.7) * 0.8 +
+        Math.cos(t) * r +
+        Math.sin(t * 1.7) * wobZ +
         Math.cos(t * 0.5) * 0.5;
       groupRef.current.position.y =
-        height +
-        Math.sin(t * 2) * 0.2 +
+        h +
+        Math.sin(t * 2) * bob +
         Math.cos(t * 3.3) * 0.1 +
         Math.sin(t * 5.1) * 0.05;
 
-      // Face movement direction
       const nextX =
-        Math.sin(t + 0.01) * radius + Math.cos((t + 0.01) * 2.3) * 0.8;
+        Math.sin(t + 0.01) * r + Math.cos((t + 0.01) * 2.3) * wobX;
       const nextZ =
-        Math.cos(t + 0.01) * radius + Math.sin((t + 0.01) * 1.7) * 0.8;
+        Math.cos(t + 0.01) * r + Math.sin((t + 0.01) * 1.7) * wobZ;
       groupRef.current.rotation.y = Math.atan2(
         nextX - groupRef.current.position.x,
         nextZ - groupRef.current.position.z,
       );
-      groupRef.current.rotation.z = Math.sin(t * 1.5) * 0.12;
-      groupRef.current.rotation.x = Math.cos(t * 1.8) * 0.06;
+      groupRef.current.rotation.z = Math.sin(t * 1.5) * swayAmount;
+      groupRef.current.rotation.x = Math.cos(t * 1.8) * (swayAmount * 0.5);
     }
 
-    // Update shader time uniform (GPU handles all vertex work)
     if (material.userData.shader) {
       material.userData.shader.uniforms.uTime.value = state.clock.elapsedTime;
     }
 
-    // Flicker light
     if (lightRef.current) {
       const flicker =
         Math.sin(state.clock.elapsedTime * 6) * 0.3 +
         Math.sin(state.clock.elapsedTime * 9.3) * 0.2;
-      lightRef.current.intensity = 2 + flicker;
+      lightRef.current.intensity = (debug?.lightIntensity ?? 6) * 0.33 + flicker;
     }
   });
 
@@ -146,8 +155,8 @@ export function FabricGhost({
         ref={lightRef}
         position={[0, 0.05, 0]}
         color={glowColor}
-        intensity={6}
-        distance={7}
+        intensity={debug?.lightIntensity ?? 6}
+        distance={debug?.lightDistance ?? 7}
         decay={1.5}
       />
     </group>

@@ -7,6 +7,7 @@ import { DoorLight } from "./house/DoorLight";
 import { GardenBushes } from "./house/GardenBush";
 import { Ghost } from "./ghosts/Ghost";
 import { FabricGhost } from "./ghosts/FabricGhost";
+import { useGhostLightDebug, useFabricGhostDebug } from "./ghosts/useGhostDebug";
 import { Graves } from "./environment/Graves";
 import { Ground } from "./environment/Ground";
 import {
@@ -15,6 +16,9 @@ import {
 } from "@/lib/constants";
 
 export function HauntedHouse() {
+  const ghostDebug = useGhostLightDebug();
+  const fabricDebug = useFabricGhostDebug();
+
   return (
     <group>
       <Walls />
@@ -23,10 +27,10 @@ export function HauntedHouse() {
       <DoorLight />
       <GardenBushes />
       {GHOST_CONFIGS.map((cfg, i) => (
-        <Ghost key={i} {...cfg} />
+        <Ghost key={i} {...cfg} debug={ghostDebug} />
       ))}
       {FABRIC_GHOST_CONFIGS.map((cfg, i) => (
-        <FabricGhost key={i} {...cfg} />
+        <FabricGhost key={i} {...cfg} debug={fabricDebug} />
       ))}
       <Graves />
       <Ground />

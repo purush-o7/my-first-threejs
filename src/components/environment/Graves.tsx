@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
-import { useLoader } from "@react-three/fiber";
+import { useMemo, useRef } from "react";
+import { useLoader, useFrame } from "@react-three/fiber";
 import { Instances, Instance } from "@react-three/drei";
 import { TextureLoader } from "three";
-import { SkeletonModel } from "../Skeleton";
+import type { PointLight } from "three";
+import { SkeletonModel, useSkeletonDebug } from "../Skeleton";
+import { useControls } from "leva";
 import { isMobile } from "@/lib/device";
 import {
   GRAVE_COUNT,
@@ -94,6 +96,7 @@ function generateGraves(): GraveData[] {
 
 export function Graves() {
   const graves = useMemo(generateGraves, []);
+  const skeletonDebug = useSkeletonDebug();
 
   const [diffMap, norMap, armMap] = useLoader(TextureLoader, [
     "/textures/grave/diff.jpg",
@@ -146,9 +149,48 @@ export function Graves() {
               rotY={g.skelRotY}
               posY={g.skelPosY}
               scale={g.skelScale}
+              debug={skeletonDebug}
             />
           </group>
         ))}
+
+      {/* Pulsing grave glow — every 5th grave */}
+      {graves
+        .filter((_, i) => i % 5 === 0)
+        .map((g, i) => (
+          <GraveGlow key={i} position={g.pos} offset={i * 2.5} />
+        ))}
     </group>
+  );
+}
+
+function GraveGlow({ position, offset }: { position: [number, number, number]; offset: number }) {
+  const lightRef = useRef<PointLight>(null);
+
+  const { glowColor, maxIntensity, pulseSpeed } = useControls("Grave Glow", {
+    glowColor: "#44ff88",
+    maxIntensity: { value: 3, min: 0, max: 10, step: 0.5 },
+    pulseSpeed: { value: 0.8, min: 0.1, max: 3, step: 0.1 },
+  }, { collapsed: true });
+
+  useFrame((state) => {
+    if (lightRef.current) {
+      const t = state.clock.elapsedTime * pulseSpeed + offset;
+      // Sharp pulse: mostly off, brief glow
+      const raw = Math.sin(t) * 0.5 + 0.5;
+      const pulse = Math.pow(raw, 4); // sharpen the peak
+      lightRef.current.intensity = pulse * maxIntensity;
+    }
+  });
+
+  return (
+    <pointLight
+      ref={lightRef}
+      position={[position[0], 0.1, position[2]]}
+      color={glowColor}
+      intensity={0}
+      distance={3}
+      decay={2}
+    />
   );
 }
